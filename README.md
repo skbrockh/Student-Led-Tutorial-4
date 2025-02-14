@@ -1,6 +1,6 @@
 # Student-Led-Tutorial-4
 # Task: Tutorial for De Novo Transcriptome Assembly Using Trinity
-# Date: March 20th
+# Date: March 27th
 
 ## **Objective**
 Students will:
