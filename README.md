@@ -41,30 +41,67 @@ We will use the same RNA-seq dataset as in the STAR tutorial:
 
 The focus will be on **de novo transcriptome assembly** instead of reference-based alignment.
 
-### **Download Instructions**
-1. Use the SRA Toolkit to download paired-end FASTQ files:
-   ```bash
-   fastq-dump --split-files SRR11412215
-   fastq-dump --split-files SRR11412227
-2. Repeat the process for all replicates.
+### Make sure you go to your ocean folder
+```
+myocean
+mkdir tutorial4
+cd tutorial4
+```
 
+### **Download Instructions**
+Use the SRA Toolkit (must be installed beforehand if run locally, otherwise available in most HPCs) to download paired-end FASTQ files:
+
+   ``` bash
+   # Example for a mock-infected sample. More replicates are always better, so repeat step for each SRA    accession.
+
+prefetch --max-size 100G SRR11412215 #Handles large files efficiently (downloads in chunks to avoid corruption) 
+fastq-dump --gzip SRR11412215
+```
+or
+
+   ``` bash
+   # Example for a COVID-19-infected sample. More replicates are always better, so repeat step for each SRA accession.
+prefetch --max-size 100G SRR11412227
+fastq-dump --gzip SRR11412227
+```
+- Repeat for all replicates
 ### **Tasks and Deliverables**
 #### **Part 1: Data Preparation**
 1. Verify the quality of RNA-seq reads using FastQC (optional but recommended):
    ```bash
-   fastqc SRR11412215_1.fastq SRR11412215_2.fastq
+   module load FastQC
+   fastqc -t 4 *.fastq -o fastqc_data_out
+2. Run multiqc
+```
+module load python/3.8.6
+multiqc --dirs fastqc_data_out --filename multiqc_raw_data.html
+```
+-Visualize multiqc file
 
-2. Combine FASTQ files for all replicates if necessary (e.g., for mock-infected and COVID-19-infected groups):
+3. Combine FASTQ files for mock-infected and COVID-19-infected groups:
    ```bash
-   cat SRR11412215_1.fastq SRR11412216_1.fastq > mock_combined_1.fastq
-   cat SRR11412215_2.fastq SRR11412216_2.fastq > mock_combined_2.fastq
+   cat SRR11412215.fastq SRR11412216.fastq SRR11412217.fastq SRR11412218.fastq > mock_combined.fastq
+   cat SRR11412227.fastq SRR11412228.fastq SRR11412229.fastq SRR11412230.fastq SRR11412231.fastq > covid_combined.fastq
+   
 #### **Part 2: Run Trinity**
 1. Run Trinity for de novo transcriptome assembly:
-   ```bash
-   Trinity --seqType fq --max_memory 16G \
-        --left mock_combined_1.fastq --right mock_combined_2.fastq \
+```
+salloc --mem=16G --cpus-per-task=8 --time=03:00:00
+
+module load Trinity/2.15.1
+
+Trinity --seqType fq --max_memory 16G \
+        --single mock_combined.fastq \
         --CPU 8 --output mock_trinity_out
-  - Replace mock_combined_1.fastq and mock_combined_2.fastq with filenames for COVID-19-infected data as needed.
+```
+
+  - Replace mock_combined.fastq with covid_combined.fastq
+```
+Trinity --seqType fq --max_memory 16G \
+        --single covid_combined.fastq \
+        --CPU 8 --output mock_trinity_out
+```
+
 2. Output:
 - Trinity.fasta: Contains assembled transcripts.
 - Logs and intermediate files for troubleshooting.
@@ -82,8 +119,8 @@ The focus will be on **de novo transcriptome assembly** instead of reference-bas
   - Use Salmon or RSEM for quantification:
    ```bash
    salmon quant -i mock_trinity_out/Trinity.fasta -l A \
-             -1 mock_combined_1.fastq -2 mock_combined_2.fastq \
-             -o mock_salmon_out
+             -1 mock_combined.fastq -2 covid_combined.fastq \
+             -o salmon_out
  ```
   - Output:
   - Quantification files indicating transcript abundance.
