@@ -35,9 +35,9 @@ Students will:
 ## **Dataset Description**
 We will use the same RNA-seq dataset as in the STAR tutorial:
 - **Mock-infected cells**:
-  - SRA Accessions: `SRR11412215`, `SRR11412216`, `SRR11412217`, `SRR11412218`.
+  - SRA Accessions: `SRR11412215`, `SRR11412216`
 - **COVID-19-infected cells**:
-  - SRA Accessions: `SRR11412227`, `SRR11412228`, `SRR11412229`, `SRR11412230`, `SRR11412231`.
+  - SRA Accessions: `SRR11412227`, `SRR11412228`
 
 The focus will be on **de novo transcriptome assembly** instead of reference-based alignment.
 
@@ -80,26 +80,26 @@ multiqc --dirs fastqc_data_out --filename multiqc_raw_data.html
 
 3. Combine FASTQ files for mock-infected and COVID-19-infected groups:
    ```bash
-   cat SRR11412215.fastq SRR11412216.fastq SRR11412217.fastq SRR11412218.fastq > mock_combined.fastq
-   cat SRR11412227.fastq SRR11412228.fastq SRR11412229.fastq SRR11412230.fastq SRR11412231.fastq > covid_combined.fastq
+   cat SRR11412215.fastq SRR11412216.fastq > mock_combined.fastq
+   cat SRR11412227.fastq SRR11412228.fastq > covid_combined.fastq
    
-#### **Part 2: Run Trinity**
+#### **Part 2: Run Trinity (MEMORY DEMANDING!)**
 1. Run Trinity for de novo transcriptome assembly:
 ```
-salloc --mem=16G --cpus-per-task=8 --time=03:00:00
+salloc --mem=64G --cpus-per-task=32 --time=06:00:00
 
 module load Trinity/2.15.1
 
-Trinity --seqType fq --max_memory 16G \
+Trinity --seqType fq --max_memory 64G \
         --single mock_combined.fastq \
-        --CPU 8 --output mock_trinity_out
+        --CPU 32 --output mock_trinity_out
 ```
 
   - Replace mock_combined.fastq with covid_combined.fastq
 ```
-Trinity --seqType fq --max_memory 16G \
+Trinity --seqType fq --max_memory 64G \
         --single covid_combined.fastq \
-        --CPU 8 --output mock_trinity_out
+        --CPU 32 --output mock_trinity_out
 ```
 
 2. Output:
