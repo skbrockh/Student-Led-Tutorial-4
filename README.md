@@ -110,9 +110,15 @@ Trinity --seqType fq --max_memory 64G \
 1. Count the number of transcripts:
    ```bash
    grep -c ">" mock_trinity_out/Trinity.fasta
-2. Assess transcript length distribution:
+2. Assess transcript length distribution for mock data:
    ```bash
-   TrinityStats.pl mock_trinity_out/Trinity.fasta
+   mkdir ~/trinity_stats_tool && cd ~/trinity_stats_tool
+   git clone https://github.com/trinityrnaseq/trinityrnaseq.git
+   cd /ocean/projects/agr250001p/your-username/tutorial4
+   perl -I ~/trinity_stats_tool/trinityrnaseq/PerlLib ~/trinity_stats_tool/trinityrnaseq/util/TrinityStats.pl mock_trinity_out.Trinity.fasta > mock_trinity_stats.txt
+3. Assess transcript length distribution for mock data:
+   ```bash
+     perl -I ~/trinity_stats_tool/trinityrnaseq/PerlLib ~/trinity_stats_tool/trinityrnaseq/util/TrinityStats.pl covid_trinity_out.Trinity.fasta > covid_trinity_stats.txt
 
 #### **Part 4: Downstream Analysis**
 1. Quantify Transcript Abundance.
