@@ -145,7 +145,7 @@ salmon index -t mock_trinity_out.Trinity.fasta -i mock_trinity_index
        -r mock_combined.fastq \
        -o salmon_mock_out
 ```
--For  covid:
+- For  covid:
 ```bash
    salmon quant -i mock_trinity_index -l A \
        -r covid_combined.fastq \
