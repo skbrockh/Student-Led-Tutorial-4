@@ -109,8 +109,8 @@ Trinity --seqType fq --max_memory 100G \
 #### **Part 3: Evaluate Assembly Quality**
 1. Count the number of transcripts:
    ```bash
-   grep -c ">" mock_trinity_out/Trinity.fasta
-   grep -c ">" covid_trinity_out/Trinity.fasta
+   grep -c ">" mock_trinity_out.Trinity.fasta
+   grep -c ">" covid_trinity_out.Trinity.fasta
 
 2. Assess transcript length distribution for mock data:
    ```bash
