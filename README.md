@@ -154,7 +154,7 @@ salmon index -t mock_trinity_out.Trinity.fasta -i mock_trinity_index
 - Output:
 - Quantification files indicating transcript abundance.
 
-#### **Part 5: Data Visualization**
+#### **Part 5: Data Visualization in R**
 #### TRANSCRIPT LENGHT COMPARISON
 1. Plot transcript length distribution (R example):
 ```
