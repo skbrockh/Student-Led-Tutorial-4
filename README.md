@@ -124,28 +124,38 @@ Trinity --seqType fq --max_memory 100G \
 
 #### **Part 4: Downstream Analysis**
 - Use Salmon for quantification:
-1.Create salmon index
+1. Create a conda environment to install salmon and activate the environment
 ```
-salmon index -t mock_trinity_out/Trinity.fasta -i mock_trinity_index
+module load anaconda3
 ```
-2. Quantify Transcript Abundance.
+```
+conda create -n salmon_env -c bioconda -c conda-forge salmon
+```
+```
+conda activate salmon_env
+```
+3. Create salmon index (Yes, one index for both)
+```
+salmon index -t mock_trinity_out.Trinity.fasta -i mock_trinity_index
+```
+3. Quantify Transcript Abundance.
 - For mock:
-   ```bash
-   salmon quant -i trinity_index -l A \
+```bash
+   salmon quant -i mock_trinity_index -l A \
        -r mock_combined.fastq \
        -o salmon_mock_out
- ```
- -For  covid:
-   ```bash
-   salmon quant -i trinity_index -l A \
+```
+-For  covid:
+```bash
+   salmon quant -i mock_trinity_index -l A \
        -r covid_combined.fastq \
        -o salmon_covid_out
- ```
+```
 - Output:
 - Quantification files indicating transcript abundance.
 
 #### **Part 5: Data Visualization**
-#### TRANSCRIPT LENGHT DISTRIBUTION
+#### TRANSCRIPT LENGHT COMPARISON
 1. Plot transcript length distribution (R example):
 ```
 #Install and load libraries
@@ -154,49 +164,101 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 }
 library(ggplot2)
 
-if (!requireNamespace("dplyr", quietly = TRUE)) {
-  install.packages("dplyr")
+# Read the text files
+mock_lines <- readLines("mock_trinity_stats.txt")
+covid_lines <- readLines("covid_trinity_stats.txt")
+
+# Extract average and median contig lengths
+get_stat <- function(pattern, lines) {
+  value <- grep(pattern, lines, value = TRUE)
+  as.numeric(gsub("[^0-9.]", "", value))
 }
-library(dplyr)
 
-# Load stats (adjust path if needed)
-mock_stats <- read.table("mock_trinity_stats.txt", header=TRUE)
-covid_stats <- read.table("covid_trinity_stats.txt", header=TRUE)
+mock_avg <- get_stat("Average contig", mock_lines)
+mock_med <- get_stat("Median contig length", mock_lines)
 
-# Label conditions
-mock_stats$Condition <- "Mock"
-covid_stats$Condition <- "COVID"
+covid_avg <- get_stat("Average contig", covid_lines)
+covid_med <- get_stat("Median contig length", covid_lines)
 
-# Combine
-all_stats <- bind_rows(mock_stats, covid_stats)
+#Create a dataframe for plotting
+length_stats <- data.frame(
+  Condition = rep(c("Mock", "COVID"), each = 2),
+  Metric = rep(c("Average", "Median"), times = 2),
+  Value = c(mock_avg, mock_med, covid_avg, covid_med)
+)
 
-# Plot length distribution
-ggplot(all_stats, aes(x=Length, fill=Condition)) +
-  geom_histogram(binwidth=100, alpha=0.6, position="identity") +
+#Create a barplot
+ggplot(length_stats, aes(x = Metric, y = Value, fill = Condition)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(title = "Transcript Length Comparison (Summary)",
+       y = "Length (bp)")
+
+```
+#### TRANSCRIPT LENGHT COMPARISON
+```
+#Install and load libraries
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+
+if (!requireNamespace("Biostrings", quietly = TRUE)) {
+  BiocManager::install("Biostrings")
+}
+library(Biostrings)
+
+# Read FASTA files
+mock_fa <- readDNAStringSet("mock_trinity_out.Trinity.fasta")
+covid_fa <- readDNAStringSet("covid_trinity_out.Trinity.fasta")
+
+# Get transcript lengths
+mock_lengths <- data.frame(Length = width(mock_fa), Condition = "Mock")
+covid_lengths <- data.frame(Length = width(covid_fa), Condition = "COVID")
+
+# Combine into one dataframe
+all_lengths <- rbind(mock_lengths, covid_lengths)
+
+# Plot Transcript Length Distribution
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+
+#Create plot
+ggplot(all_lengths, aes(x=Length, color=Condition, fill=Condition)) +
+  geom_density(alpha=0.3) +
+  scale_x_continuous(limits=c(0, 5000)) +  # optional: limit x-range
   scale_fill_manual(values=c("Mock"="#0072B2", "COVID"="#D55E00")) +
+  scale_color_manual(values=c("Mock"="#0072B2", "COVID"="#D55E00")) +
   theme_minimal() +
   labs(title="Transcript Length Distribution",
        x="Transcript Length (bp)",
-       y="Count")
+       y="Density")
 ```
 #### COMPARE TRANSCRIPT EXPRESSION
-1. Prepare transcript-to-gene map
+1. Prepare transcript-to-gene map in the HPC
 ```
-grep ">" mock_trinity_out/Trinity.fasta | sed 's/>//' | \
+grep ">" mock_trinity_out.Trinity.fasta | sed 's/>//' | \
 awk -F ' ' '{print $1}' | \
 awk -F '_' '{OFS=","; print $0, $1"_"$2"_"$3"_"$4}' > tx2gene.csv
 ```
-2. Import Salmon output into R
+2. Create a heatmap R
 ```
 #Install and load libraries
-if (!requireNamespace("tximport", quietly = TRUE)) {
-  install.packages("tximport")
-}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("tximport")
 library(tximport)
 
+if (!requireNamespace("pheatmap", quietly = TRUE)) {
+  install.packages("pheatmap")
+}
+library(pheatmap)
+
 # Point to Salmon quant files
-files <- c("mock" = "salmon_mock_out/quant.sf",
-           "covid" = "salmon_covid_out/quant.sf")
+files <- c("mock" = "quant_mock.sf",
+           "covid" = "quant_covid.sf")
 
 # Load tx2gene
 tx2gene <- read.csv("tx2gene.csv", header=FALSE, col.names=c("TXNAME", "GENEID"))
@@ -206,24 +268,17 @@ txi <- tximport(files, type="salmon", tx2gene=tx2gene)
 
 # Optional: view matrix of expression
 head(txi$abundance)
-```
-
-3. Create heatmaps for quantified transcripts (e.g., top 50):
-```R
-#Install and load libraries
-if (!requireNamespace("pheatmap", quietly = TRUE)) {
-  install.packages("pheatmap")
-}
-library(pheatmap)
 
 # Get top 50 most expressed transcripts
 top_tx <- head(order(rowSums(txi$abundance), decreasing=TRUE), 50)
 top_data <- log2(txi$abundance[top_tx, ] + 1)
 
+##Create heatmaps for quantified transcripts (e.g., top 50):
 pheatmap(top_data,
          cluster_rows=TRUE,
          cluster_cols=FALSE,
          scale="row",
+         fontsize=8,
          main="Top 50 Expressed Transcripts",
          color=colorRampPalette(c("navy", "white", "firebrick3"))(50))
 ```
