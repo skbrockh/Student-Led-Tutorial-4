@@ -86,20 +86,20 @@ multiqc --dirs fastqc_data_out --filename multiqc_raw_data.html
 #### **Part 2: Run Trinity (MEMORY DEMANDING!)**
 1. Run Trinity for de novo transcriptome assembly:
 ```
-salloc --mem=64G --cpus-per-task=32 --time=06:00:00
+salloc --mem=100G --cpus-per-task=50 --time=06:00:00
 
 module load Trinity/2.15.1
 
-Trinity --seqType fq --max_memory 64G \
+Trinity --seqType fq --max_memory 100G \
         --single mock_combined.fastq \
-        --CPU 32 --output mock_trinity_out
+        --CPU 64 --output mock_trinity_out
 ```
 
   - Replace mock_combined.fastq with covid_combined.fastq
 ```
-Trinity --seqType fq --max_memory 64G \
+Trinity --seqType fq --max_memory 100G \
         --single covid_combined.fastq \
-        --CPU 32 --output mock_trinity_out
+        --CPU 64 --output covid_trinity_out
 ```
 
 2. Output:
@@ -110,45 +110,120 @@ Trinity --seqType fq --max_memory 64G \
 1. Count the number of transcripts:
    ```bash
    grep -c ">" mock_trinity_out/Trinity.fasta
+   grep -c ">" covid_trinity_out/Trinity.fasta
+
 2. Assess transcript length distribution for mock data:
    ```bash
    mkdir ~/trinity_stats_tool && cd ~/trinity_stats_tool
    git clone https://github.com/trinityrnaseq/trinityrnaseq.git
    cd /ocean/projects/agr250001p/your-username/tutorial4
    perl -I ~/trinity_stats_tool/trinityrnaseq/PerlLib ~/trinity_stats_tool/trinityrnaseq/util/TrinityStats.pl mock_trinity_out.Trinity.fasta > mock_trinity_stats.txt
-3. Assess transcript length distribution for mock data:
+3. Assess transcript length distribution for covid data:
    ```bash
      perl -I ~/trinity_stats_tool/trinityrnaseq/PerlLib ~/trinity_stats_tool/trinityrnaseq/util/TrinityStats.pl covid_trinity_out.Trinity.fasta > covid_trinity_stats.txt
 
 #### **Part 4: Downstream Analysis**
-1. Quantify Transcript Abundance.
-  - Use Salmon or RSEM for quantification:
+- Use Salmon for quantification:
+1.Create salmon index
+```
+salmon index -t mock_trinity_out/Trinity.fasta -i mock_trinity_index
+```
+2. Quantify Transcript Abundance.
+- For mock:
    ```bash
-   salmon quant -i mock_trinity_out/Trinity.fasta -l A \
-             -1 mock_combined.fastq -2 covid_combined.fastq \
-             -o salmon_out
+   salmon quant -i trinity_index -l A \
+       -r mock_combined.fastq \
+       -o salmon_mock_out
  ```
-  - Output:
-  - Quantification files indicating transcript abundance.
-
-2. Annotate Transcripts (Optional).
-- Predict coding regions using TransDecoder:
+ -For  covid:
    ```bash
-   TransDecoder.LongOrfs -t mock_trinity_out/Trinity.fasta
-   TransDecoder.Predict -t mock_trinity_out/Trinity.fasta
+   salmon quant -i trinity_index -l A \
+       -r covid_combined.fastq \
+       -o salmon_covid_out
+ ```
 - Output:
-  - Predicted coding sequences and peptide sequences.
+- Quantification files indicating transcript abundance.
 
 #### **Part 5: Data Visualization**
+#### TRANSCRIPT LENGHT DISTRIBUTION
 1. Plot transcript length distribution (R example):
-   ```R
-   library(ggplot2)
-   lengths <- read.table("trinity_out/Trinity.fasta.stats", header=TRUE)
-   ggplot(lengths, aes(x=Length)) + 
-    geom_histogram(binwidth=100) + 
-    theme_minimal()
-2. Create heatmaps for quantified transcripts (e.g., top 50):
-   ```R
-   library(pheatmap)
-   top_transcripts <- head(order(salmon_out$abundance), 50)
-   pheatmap(salmon_out[top_transcripts, ])
+```
+#Install and load libraries
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+# Load stats (adjust path if needed)
+mock_stats <- read.table("mock_trinity_stats.txt", header=TRUE)
+covid_stats <- read.table("covid_trinity_stats.txt", header=TRUE)
+
+# Label conditions
+mock_stats$Condition <- "Mock"
+covid_stats$Condition <- "COVID"
+
+# Combine
+all_stats <- bind_rows(mock_stats, covid_stats)
+
+# Plot length distribution
+ggplot(all_stats, aes(x=Length, fill=Condition)) +
+  geom_histogram(binwidth=100, alpha=0.6, position="identity") +
+  scale_fill_manual(values=c("Mock"="#0072B2", "COVID"="#D55E00")) +
+  theme_minimal() +
+  labs(title="Transcript Length Distribution",
+       x="Transcript Length (bp)",
+       y="Count")
+```
+#### COMPARE TRANSCRIPT EXPRESSION
+1. Prepare transcript-to-gene map
+```
+grep ">" mock_trinity_out/Trinity.fasta | sed 's/>//' | \
+awk -F ' ' '{print $1}' | \
+awk -F '_' '{OFS=","; print $0, $1"_"$2"_"$3"_"$4}' > tx2gene.csv
+```
+2. Import Salmon output into R
+```
+#Install and load libraries
+if (!requireNamespace("tximport", quietly = TRUE)) {
+  install.packages("tximport")
+}
+library(tximport)
+
+# Point to Salmon quant files
+files <- c("mock" = "salmon_mock_out/quant.sf",
+           "covid" = "salmon_covid_out/quant.sf")
+
+# Load tx2gene
+tx2gene <- read.csv("tx2gene.csv", header=FALSE, col.names=c("TXNAME", "GENEID"))
+
+# Import data
+txi <- tximport(files, type="salmon", tx2gene=tx2gene)
+
+# Optional: view matrix of expression
+head(txi$abundance)
+```
+
+3. Create heatmaps for quantified transcripts (e.g., top 50):
+```R
+#Install and load libraries
+if (!requireNamespace("pheatmap", quietly = TRUE)) {
+  install.packages("pheatmap")
+}
+library(pheatmap)
+
+# Get top 50 most expressed transcripts
+top_tx <- head(order(rowSums(txi$abundance), decreasing=TRUE), 50)
+top_data <- log2(txi$abundance[top_tx, ] + 1)
+
+pheatmap(top_data,
+         cluster_rows=TRUE,
+         cluster_cols=FALSE,
+         scale="row",
+         main="Top 50 Expressed Transcripts",
+         color=colorRampPalette(c("navy", "white", "firebrick3"))(50))
+```
