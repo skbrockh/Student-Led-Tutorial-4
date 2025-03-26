@@ -42,14 +42,14 @@ We will use the same RNA-seq dataset as in the STAR tutorial:
 The focus will be on **de novo transcriptome assembly** instead of reference-based alignment.
 
 ### Make sure you go to your ocean folder
-```
+``` bash
 myocean
 ```
 ### Clone the Repository
-```
+``` bash
 git clone
 ```
-```
+``` bash
 cd Student-Led-Tutorial-4
 mkdir tutorial4
 cd tutorial4
