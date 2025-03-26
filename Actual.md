@@ -72,6 +72,8 @@ fastq-dump --gzip SRR11412216
 prefetch --max-size 100G SRR11412227
 fastq-dump --gzip SRR11412227
 
+prefetch --max-size 100G SRR11412228
+fastq-dump --gzip SRR11412228
 ```
 ### **Tasks and Deliverables**
 #### **Part 1: Data Preparation**
