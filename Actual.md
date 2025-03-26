@@ -47,8 +47,8 @@ myocean
 ```
 ### Clone the Repository
 ```
+#Paste your forked URL after git clone
 git clone
-
 ```
 ```
 cd Student-Led-Tutorial-4
