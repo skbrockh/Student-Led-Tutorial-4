@@ -77,9 +77,17 @@ fastq-dump --gzip SRR11412228
 ```
 ### **Tasks and Deliverables**
 #### **Part 1: Data Preparation**
+1. Unzip the .fastq.qz files
+   ```bash
+   gunzip SRR11412215.fastq.gz
+   gunzip SRR11412216.fastq.gz
+   gunzip SRR11412227.fastq.gz
+   gunzip SRR11412228.fastq.gz
+
 1. Verify the quality of RNA-seq reads using FastQC (optional but recommended):
    ```bash
    module load FastQC
+   mkdir fastqc_data_out
    fastqc -t 4 *.fastq -o fastqc_data_out
 2. Run multiqc
 ```
