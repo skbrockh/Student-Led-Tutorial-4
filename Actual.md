@@ -85,7 +85,12 @@ fastq-dump --gzip SRR11412227
 module load python/3.8.6
 multiqc --dirs fastqc_data_out --filename multiqc_raw_data.html
 ```
--Visualize multiqc file
+-Visualize multiqc file with QIIME 2.
+```
+git add multiqc_raw_data.html
+git commit -m "multiqc data"
+git push
+```
 
 3. Combine FASTQ files for mock-infected and COVID-19-infected groups:
    ```bash
@@ -95,20 +100,20 @@ multiqc --dirs fastqc_data_out --filename multiqc_raw_data.html
 #### **Part 2: Run Trinity (MEMORY DEMANDING!)**
 1. Run Trinity for de novo transcriptome assembly:
 ```
-salloc --mem=100G --cpus-per-task=50 --time=06:00:00
+salloc --mem=256G --cpus-per-task=128 --time=06:00:00
 
 module load Trinity/2.15.1
 
-Trinity --seqType fq --max_memory 100G \
+Trinity --seqType fq --max_memory 256G \
         --single mock_combined.fastq \
-        --CPU 64 --output mock_trinity_out
+        --CPU 128 --output mock_trinity_out
 ```
 
   - Replace mock_combined.fastq with covid_combined.fastq
 ```
-Trinity --seqType fq --max_memory 100G \
+Trinity --seqType fq --max_memory 256G \
         --single covid_combined.fastq \
-        --CPU 64 --output covid_trinity_out
+        --CPU 128 --output covid_trinity_out
 ```
 
 2. Output:
